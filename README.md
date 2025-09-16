@@ -17,16 +17,18 @@ Avaliaremos sua capacidade de:
 
 #### Observação
 
-É esperado que você possa não ter tido contato prévio com todas as tecnologias solicitadas (como LangGraph, por exemplo), e isso é intencional. Parte da avaliação consiste em verificar sua capacidade de aprender rapidamente e aplicar novos conceitos. Por essa razão, o desafio tem uma duração de 10 dias, permitindo que você tenha tempo para estudar e desenvolver sua solução.
+É esperado que você possa não ter tido contato prévio com todas as tecnologias solicitadas (como LangGraph, por exemplo), e isso é intencional. Parte da avaliação consiste em verificar sua capacidade de aprender rapidamente e aplicar novos conceitos. Por essa razão, o desafio tem uma duração de 7 dias, permitindo que você tenha tempo para estudar e desenvolver sua solução.
 
 ### Conjunto de Dados
 
 O agente deverá consultar dados públicos do projeto `datario` no BigQuery. As tabelas principais para este desafio são:
 
 - **Chamados do 1746:** Dados de chamados de serviços públicos.
-  - Caminho: `datario.adm_central_atendimento_1746.chamado`
+  - Caminho: `datario.adm_central_atendimento_1746.chamado` (*)
 - **Bairros do Rio de Janeiro:** Catálogo de bairros para enriquecimento dos dados.
   - Caminho: `datario.dados_mestres.bairro`
+ 
+> (*) A coluna `data_particao` é a coluna de particionamento da tabela, ela é feita em cima de um trunc (DATE) da coluna `data_inicio`
 
 ### Ferramentas e Recursos
 
