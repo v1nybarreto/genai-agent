@@ -51,7 +51,7 @@ O agente deverá consultar dados públicos do projeto `datario` no BigQuery. As 
     - Um arquivo `requirements.txt` com as dependências.
     - Um `README.md` detalhado para o seu projeto.
 5.  **Documentação:** Atualize o `README.md` do seu repositório explicando a arquitetura da sua solução, como configurá-la (chaves de API, etc.) e como executá-la.
-6.  **Entrega:** Faça commits incrementais à medida que avança. Ao finalizar, envie o link do seu repositório no GitHub.
+6.  **Entrega:** Faça commits incrementais à medida que avança. Ao finalizar, envie o link do seu repositório (privado) no GitHub para `brunoalmeida@prefeitura.rio` e `fernanda.scovino@prefeitura.rio`.
 
 ## Avaliação
 
@@ -66,7 +66,7 @@ Sua solução será avaliada com base nos seguintes critérios e pesos:
 
 ## Dúvidas
 
-Se tiver alguma dúvida, entre em contato pelo email `brunoalmeida@prefeitura.rio`.
+Se tiver alguma dúvida, entre em contato pelo email `brunoalmeida@prefeitura.rio` e/ou `fernanda.scovino@prefeitura.rio`.
 
 Boa sorte! Estamos ansiosos para ver sua solução.
 
