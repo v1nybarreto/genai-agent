@@ -30,44 +30,90 @@ from src.utils.bq import dry_run, execute
 from src.utils.schema import get_table_schema
 from src.utils.logger import get_logger
 
-# Constantes
+# Constantes e configuração
 
 TAB_CHAMADO = "datario.adm_central_atendimento_1746.chamado"
 TAB_BAIRRO = "datario.dados_mestres.bairro"
 DATASET_CHAMADO = "datario.adm_central_atendimento_1746"
 TABLE_CHAMADO = "chamado"
 
-_DATE_PT = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")  # dd/mm/yyyy
+# Datas em PT-BR
+_DATE_PT = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
 
-# Cache simples do schema (evita bater no INFORMATION_SCHEMA a cada pergunta)
+# Cache simples do schema
 _SCHEMA_CACHE: Optional[Dict[str, str]] = None
 
 log = get_logger(__name__)
 
-
 # Roteador
+
 
 def route_intent(question: str) -> Dict[str, Any]:
     """
-    Heurística leve para decidir se a pergunta é sobre dados ou conversacional.
+    Decide se a pergunta é sobre dados ("data") ou conversacional ("chitchat").
 
-    Retorna
+    Heurística leve baseada em gatilhos de linguagem natural em PT-BR.
+
+    Parameters
+    ----------
+    question : str
+        Pergunta do usuário.
+
+    Returns
     -------
-    {"intent": "data" | "chitchat", "question": <original>}
+    dict
+        {"intent": "data" | "chitchat", "question": <original>}
     """
-    q = (question or "").lower()
+    q = (question or "").strip().lower()
+
+    # Palavras e padrões típicos de perguntas analíticas
     data_triggers = (
-        "quantos", "qual", "quais", "top", "maior", "menor",
-        "contagem", "bairro", "unidade", "chamados", "iluminação",
-        "reparo", "fiscalização", "buraco", "estacionamento"
+        "quantos",
+        "quanto",
+        "qual",
+        "quais",
+        "top",
+        "maior",
+        "menor",
+        "contagem",
+        "bairro",
+        "unidade",
+        "chamados",
+        "iluminação",
+        "reparo",
+        "buraco",
+        "fiscalização",
+        "estacionamento",
+        "irregular",
+        "2023",
+        "2024",
+        "1746",
     )
+    # Gatilhos de conversa genérica
+    chitchat_triggers = (
+        "oi",
+        "olá",
+        "bom dia",
+        "boa tarde",
+        "boa noite",
+        "obrigado",
+        "valeu",
+    )
+
     is_data = any(w in q for w in data_triggers)
-    intent = "data" if is_data else "chitchat"
+    is_chitchat = any(w in q for w in chitchat_triggers)
+
+    intent = (
+        "data"
+        if (is_data and not is_chitchat)
+        else ("chitchat" if is_chitchat else "data" if is_data else "chitchat")
+    )
     log.debug("route_intent | intent=%s | q=%s", intent, q[:120])
     return {"intent": intent, "question": question}
 
 
 # Helpers de Schema/Text
+
 
 def _schema() -> Dict[str, str]:
     """
@@ -82,7 +128,13 @@ def _schema() -> Dict[str, str]:
 
 
 def _parse_date_pt(text: str) -> Optional[dt.date]:
-    """Extrai uma data no formato dd/mm/yyyy de um texto PT-BR."""
+    """
+    Extrai uma data no formato dd/mm/yyyy a partir de um texto PT-BR.
+
+    Returns
+    -------
+    datetime.date | None
+    """
     if not text:
         return None
     m = _DATE_PT.search(text)
@@ -99,8 +151,15 @@ def _text_columns() -> List[str]:
     """
     s = _schema()
     candidates = [
-        "subtipo", "tipo", "categoria", "descricao", "titulo",
-        "motivo", "detalhe", "classificacao", "assunto"
+        "subtipo",
+        "tipo",
+        "categoria",
+        "descricao",
+        "titulo",
+        "motivo",
+        "detalhe",
+        "classificacao",
+        "assunto",
     ]
     cols = [c for c in candidates if c in s and s[c].upper().startswith("STRING")]
     log.debug("text_columns=%s", cols)
@@ -108,8 +167,13 @@ def _text_columns() -> List[str]:
 
 
 def _escape_like_term(term: str) -> str:
-    """Sanitiza termos para uso em LIKE (escapa aspas simples)."""
-    return term.replace("'", "\\'")
+    """
+    Sanitiza termos para uso em LIKE.
+
+    Importante: em BigQuery Standard SQL, aspas simples são escapadas duplicando-as.
+    Ex.: O'Neil -> O''Neil
+    """
+    return term.replace("'", "''")
 
 
 def _build_like_filter(terms: List[str]) -> str:
@@ -121,7 +185,7 @@ def _build_like_filter(terms: List[str]) -> str:
     if not cols or not terms:
         return "1=1"  # fallback seguro
 
-    safe_terms = [ _escape_like_term(t.lower()) for t in terms if t.strip() ]
+    safe_terms = [_escape_like_term(t.lower()) for t in terms if t and t.strip()]
     if not safe_terms:
         return "1=1"
 
@@ -137,43 +201,66 @@ def _build_like_filter(terms: List[str]) -> str:
 def _bairro_join_condition() -> str:
     """
     Ajusta o JOIN entre fato e dimensão bairro conforme tipos:
+
     - Se id_bairro no fato é STRING → c.id_bairro = CAST(b.id_bairro AS STRING)
     - Caso contrário → CAST(c.id_bairro AS INT64) = b.id_bairro
     """
     s = _schema()
     fato_t = s.get("id_bairro", "STRING").upper()
-    cond = "c.id_bairro = CAST(b.id_bairro AS STRING)" if fato_t.startswith("STRING") \
+    cond = (
+        "c.id_bairro = CAST(b.id_bairro AS STRING)"
+        if fato_t.startswith("STRING")
         else "CAST(c.id_bairro AS INT64) = b.id_bairro"
+    )
     log.debug("join_condition=%s (id_bairro tipo=%s)", cond, fato_t)
     return cond
 
 
 def _one_line(sql: str) -> str:
-    """Normaliza espaços para facilitar testes e logs."""
+    """Normaliza espaços para facilitar testes, logs e dry-run determinístico."""
     return re.sub(r"\s+", " ", sql or "").strip()
 
 
 def _year_condition(target_year: int) -> Tuple[str, Optional[str]]:
     """
     Constrói condição de ano usando a melhor coluna disponível.
-    PRIORIDADE (alinhada aos testes):
-    1) EXTRACT(YEAR FROM c.data_inicio) = <ano>, se data_inicio existir
-    2) Faixa em data_particao, se data_particao existir
-    3) 1=1 (fallback)
-    Retorna (condição_sql, coluna_utilizada)
+
+    PRIORIDADE **EFICIENTE**:
+    1) Faixa em data_particao (partition pruning), se existir.
+    2) EXTRACT(YEAR FROM c.data_inicio) = <ano>, se data_inicio existir.
+    3) 1=1 (fallback).
+
+    Returns
+    -------
+    (condição_sql, coluna_utilizada|None)
     """
     s = _schema()
-    if "data_inicio" in s:
-        return f"EXTRACT(YEAR FROM c.data_inicio) = {target_year}", "data_inicio"
     if "data_particao" in s:
         start = f"DATE '{target_year}-01-01'"
         end = f"DATE '{target_year+1}-01-01'"
         cond = f"(data_particao >= {start} AND data_particao < {end})"
         return cond, "data_particao"
+    if "data_inicio" in s:
+        return f"EXTRACT(YEAR FROM c.data_inicio) = {target_year}", "data_inicio"
     return "1=1", None
 
 
+def _default_date_window() -> str:
+    """
+    Janela temporal padrão para perguntas sem data explícita.
+    Prioriza a coluna particionada quando existir.
+    Retorna uma expressão SQL de filtro (string).
+    """
+    s = _schema()
+    if "data_particao" in s:
+        return "data_particao >= DATE_SUB(CURRENT_DATE(), INTERVAL 365 DAY)"
+    if "data_inicio" in s:
+        return "DATE(data_inicio) >= DATE_SUB(CURRENT_DATE(), INTERVAL 365 DAY)"
+    return "1=1"
+
+
 # Gerador de SQL
+
 
 def generate_sql(question: str) -> Dict[str, Any]:
     """
@@ -181,10 +268,10 @@ def generate_sql(question: str) -> Dict[str, Any]:
     adaptando-se às colunas disponíveis no schema real.
 
     Segurança/eficiência:
-    - SELECT com projeções explícitas
-    - Filtros textuais somente em colunas existentes
-    - Condições parentetizadas para evitar ambiguidades de precedência
-    - Uso de partição (data_particao) quando disponível
+    - SELECT com projeções explícitas (nunca SELECT *).
+    - Filtros textuais somente em colunas existentes.
+    - Condições parentetizadas (clareza de precedência).
+    - Uso de partição (data_particao) quando disponível.
     """
     q = (question or "").strip().lower()
     s = _schema()
@@ -205,11 +292,11 @@ def generate_sql(question: str) -> Dict[str, Any]:
 
     # 2) Subtipo mais comum relacionado a "Iluminação Pública"
     if "iluminação" in q:
-        # Preferimos 'subtipo' (quando existir) para atender casos de teste que exigem GROUP BY subtipo
-        if ("subtipo" in s and s["subtipo"].upper().startswith("STRING")):
+        # Preferimos 'subtipo' (quando existir) para atender casos que exigem GROUP BY subtipo
+        if "subtipo" in s and s["subtipo"].upper().startswith("STRING"):
             select_expr = "subtipo"
             group_expr = "subtipo"
-        elif ("tipo" in s and s["tipo"].upper().startswith("STRING")):
+        elif "tipo" in s and s["tipo"].upper().startswith("STRING"):
             select_expr = "tipo"
             group_expr = "tipo"
         else:
@@ -217,10 +304,11 @@ def generate_sql(question: str) -> Dict[str, Any]:
             group_expr = "categoria"
 
         filtro = _build_like_filter(["iluminação", "pública"])
+        date_filter = _default_date_window()  # <- janela padrão para reduzir custo
         sql = f"""
             SELECT {select_expr}, COUNT(1) AS total
             FROM `{TAB_CHAMADO}`
-            WHERE ({filtro})
+            WHERE ({filtro}) AND ({date_filter})
             GROUP BY {group_expr}
             ORDER BY total DESC
             LIMIT 1
@@ -253,11 +341,16 @@ def generate_sql(question: str) -> Dict[str, Any]:
     # 4) Unidade organizacional líder — "Fiscalização de estacionamento irregular"
     if "fiscalização" in q and "estacionamento" in q and "irregular" in q:
         filtro = _build_like_filter(["fiscalização", "estacionamento", "irregular"])
-        unidade_col = "nome_unidade_organizacional" if "nome_unidade_organizacional" in s else "id_unidade_organizacional"
+        unidade_col = (
+            "nome_unidade_organizacional"
+            if "nome_unidade_organizacional" in s
+            else "id_unidade_organizacional"
+        )
+        date_filter = _default_date_window()  # <- janela padrão para reduzir custo
         sql = f"""
             SELECT {unidade_col} AS unidade, COUNT(1) AS total
             FROM `{TAB_CHAMADO}`
-            WHERE ({filtro})
+            WHERE ({filtro}) AND ({date_filter})
             GROUP BY unidade
             ORDER BY total DESC
             LIMIT 1
@@ -266,9 +359,13 @@ def generate_sql(question: str) -> Dict[str, Any]:
         log.info("SQL G4: %s", out)
         return {"sql": out}
 
-    # Fallback seguro para manter o fluxo funcionando
+    # Fallback seguro
     base_date = "2024-11-28"
-    where_col = "data_particao" if "data_particao" in s else "DATE(data_inicio)" if "data_inicio" in s else None
+    where_col = (
+        "data_particao"
+        if "data_particao" in s
+        else ("DATE(data_inicio)" if "data_inicio" in s else None)
+    )
     where_expr = f"{where_col} = DATE '{base_date}'" if where_col else "1=1"
     sql = f"SELECT COUNT(1) AS n FROM `{TAB_CHAMADO}` WHERE {where_expr}"
     out = _one_line(sql)
@@ -278,27 +375,56 @@ def generate_sql(question: str) -> Dict[str, Any]:
 
 # Validador / Executor / Síntese
 
+
 def validate_sql(sql: str) -> Dict[str, Any]:
     """
     Valida a consulta via DRY-RUN (sem custo).
-    Retorna {"ok": bool, "error": str|None, "dry_run_bytes": int|None}
+
+    Returns
+    -------
+    dict
+        {"ok": bool, "error": str|None, "dry_run_bytes": int|None}
     """
+    if not (sql or "").strip():
+        return {
+            "ok": False,
+            "error": "SQL vazio para validação.",
+            "dry_run_bytes": None,
+        }
+
     out = dry_run(sql)
-    log.debug("validate_sql | ok=%s | bytes=%s | err=%s", out.get("ok"), out.get("dry_run_bytes"), out.get("error"))
-    return {"ok": bool(out.get("ok")), "error": out.get("error"), "dry_run_bytes": out.get("dry_run_bytes")}
+    log.debug(
+        "validate_sql | ok=%s | bytes=%s | err=%s",
+        out.get("ok"),
+        out.get("dry_run_bytes"),
+        out.get("error"),
+    )
+    return {
+        "ok": bool(out.get("ok")),
+        "error": out.get("error"),
+        "dry_run_bytes": out.get("dry_run_bytes"),
+    }
 
 
 def execute_sql(sql: str) -> Dict[str, Any]:
     """
-    Executa a consulta no BigQuery.
-    Retorna {"ok": bool, "df": DataFrame|None, "error": str|None}
+    Executa a consulta no BigQuery. Assumimos que já houve DRY-RUN ok.
+
+    Returns
+    -------
+    dict
+        {"ok": bool, "df": DataFrame|None, "error": str|None}
     """
-    # Opcional: poderíamos forçar DRY-RUN aqui, mas os testes já fazem.
+    if not (sql or "").strip():
+        return {"ok": False, "df": None, "error": "SQL vazio no executor."}
+
     out = execute(sql)
-    log.debug("execute_sql | ok=%s | rows=%s | err=%s",
-              out.get("ok"),
-              None if out.get("df") is None else len(out.get("df")),
-              out.get("error"))
+    log.debug(
+        "execute_sql | ok=%s | rows=%s | err=%s",
+        out.get("ok"),
+        None if out.get("df") is None else len(out.get("df")),
+        out.get("error"),
+    )
     return {"ok": bool(out.get("ok")), "df": out.get("df"), "error": out.get("error")}
 
 
@@ -307,8 +433,13 @@ def synthesize(answer_df, question: str) -> Dict[str, Any]:
     Converte DataFrame em resposta textual final.
 
     Política:
-    - Se LLM_USE_FOR_SYNTH=1 e há OPENAI_API_KEY: usa LLM (gpt-4o-mini) com preview compacto.
+    - Se LLM_USE_FOR_SYNTH=1 e OPENAI_API_KEY definido: usa LLM (via utils.llm) com preview de no máx. 10 linhas.
     - Caso contrário, usa fallback determinístico (previsível e barato).
+
+    Returns
+    -------
+    dict
+        {"answer": str}
     """
     import pandas as pd
 
@@ -317,7 +448,7 @@ def synthesize(answer_df, question: str) -> Dict[str, Any]:
     if isinstance(answer_df, pd.DataFrame) and answer_df.empty:
         return {"answer": "Nenhum registro encontrado para o filtro solicitado."}
 
-    # Caminho com LLM (opcional, controlado por flag)
+    # Caminho com LLM
     if os.getenv("LLM_USE_FOR_SYNTH") == "1" and os.getenv("OPENAI_API_KEY"):
         try:
             from src.utils.llm import get_llm_response
@@ -339,10 +470,11 @@ def synthesize(answer_df, question: str) -> Dict[str, Any]:
         except Exception as e:
             log.warning("Falha no LLM; usando fallback. err=%r", e)
 
-    # fallback determinístico (sem LLM)
+    # Fallback determinístico
     try:
         cols = [c.lower() for c in answer_df.columns]
-        # Caso clássico: COUNT simples
+
+        # Caso clássico
         if "n" in cols and len(answer_df) == 1:
             n = int(answer_df.iloc[0][answer_df.columns[cols.index("n")]])
             return {"answer": f"Contagem: {n}."}
@@ -368,13 +500,17 @@ def synthesize(answer_df, question: str) -> Dict[str, Any]:
 
 # Chit-chat
 
+
 def chitchat(question: str) -> Dict[str, Any]:
     """
-    Responde educadamente a saudações/perguntas genéricas usando o LLM (OpenAI).
-    Fallback: mensagem estática, caso a API não esteja configurada.
+    Responde educadamente a saudações/perguntas genéricas.
+
+    Preferencialmente usa o LLM (utils.llm). Se a API não estiver configurada,
+    retorna uma mensagem estática e útil ao contexto do agente.
     """
     try:
         from src.utils.llm import get_llm_response  # usa gpt-4o-mini por padrão
+
         prompt = (
             "Responda em PT-BR, no máximo 2 frases, de forma simpática e objetiva. "
             "Se fizer sentido, mencione que posso ajudar com análises dos chamados do 1746."

@@ -1,0 +1,16 @@
+# Ambientes
+.venv/
+venv/
+
+# Arquivos de ambiente
+.env
+.env.local
+.env.*
+
+# Caches Python
+__pycache__/
+*.pyc
+
+# Caches pytest / ruff
+.pytest_cache/
+.ruff_cache/
