@@ -20,6 +20,7 @@ from src.agent.nodes import (
     validate_sql,
     execute_sql,
     synthesize,
+    chitchat,
 )
 
 
@@ -81,27 +82,23 @@ def _node_sql_exec(state: AgentState) -> AgentState:
 
 
 def _node_synth(state: AgentState) -> AgentState:
-    """
-    Síntese da resposta:
-    - Se a intenção for 'chitchat', responde diretamente sem acessar dados.
-    - Se houve falha de validação/execução, retorna mensagem clara.
-    - Caso contrário, delega ao sintetizador baseado em DataFrame.
-    """
-    # Tratamento direto para conversas breves (saudação etc.)
+    # Se for caminho conversacional, usa o LLM (com fallback interno)
     if state.get("intent") == "chitchat":
-        q = (state.get("question") or "").strip().lower()
-        greetings = ("olá", "ola", "oi", "bom dia", "boa tarde", "boa noite")
-        if any(g in q for g in greetings):
-            state["answer"] = (
-                "Olá! Posso ajudar com análises sobre os chamados do 1746. "
-                "Exemplo: 'Quantos chamados houve em 28/11/2024?'"
-            )
-        else:
-            state["answer"] = (
-                "Posso ajudar com análises sobre os chamados do 1746. "
-                "Qual informação você precisa?"
-            )
+        out = chitchat(state["question"])
+        state["answer"] = out["answer"]
         return state
+
+    # Se falha de validação/execução, produza resposta clara
+    if not state.get("validation_ok", True) and state.get("validation_error"):
+        state["answer"] = (
+            "Não consegui validar/executar a consulta. "
+            f"Detalhes: {state['validation_error']}"
+        )
+        return state
+
+    out = synthesize(state.get("df"), state["question"])
+    state["answer"] = out["answer"]
+    return state
 
     # Mensagem clara em caso de falha de validação/execução SQL
     if not state.get("validation_ok", True) and state.get("validation_error"):

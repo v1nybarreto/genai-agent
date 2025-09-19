@@ -234,4 +234,30 @@ def synthesize(answer_df, question: str) -> Dict[str, Any]:
     # Fallback: amostra
     head = answer_df.head(3).to_dict(orient="records")
     return {"answer": f"Amostra de resultados: {head}"}
+
+def chitchat(question: str) -> Dict[str, Any]:
+    """
+    Responde educadamente a saudações/perguntas genéricas usando o LLM (OpenAI).
+    Fallback: mensagem estática, caso a API não esteja configurada.
+    """
+    try:
+        from src.utils.llm import get_llm_response  # usa gpt-4o-mini por padrão
+        prompt = (
+            "Responda em PT-BR, no máximo 2 frases, de forma simpática e objetiva. "
+            "Se fizer sentido, lembre que posso ajudar com análises dos chamados do 1746."
+        )
+        out = get_llm_response(f"{prompt}\n\nUsuário: {question}")
+        if out.get("ok") and out.get("text"):
+            return {"answer": out["text"]}
+    except Exception:
+        # cai no fallback silenciosamente
+        pass
+
+    return {
+        "answer": (
+            "Olá! Posso ajudar com análises sobre os chamados do 1746. "
+            "Exemplo: 'Quantos chamados houve em 28/11/2024?'"
+        )
+    }
+
     
