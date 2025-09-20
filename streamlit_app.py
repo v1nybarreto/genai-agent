@@ -216,7 +216,7 @@ with st.sidebar:
 
 
 # Cabeçalho e quick actions
-st.markdown("## Agente GenAI — Chamados 1746")
+st.markdown("## Agente GenAI — Prefeitura do Rio")
 st.caption("Faça perguntas em linguagem natural. Use os atalhos das 6 questões do desafio para reproduzir o acceptance.")
 
 cols = st.columns(3)
