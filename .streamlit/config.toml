@@ -1,0 +1,30 @@
+
+# Streamlit Config (GCP)
+# Configuração de tema e servidor do Streamlit
+# Preparado para rodar no Cloud Shell do GCP ou localmente
+
+[theme]
+# Tema escuro profissional
+primaryColor = "#0EA5E9"             # azul-ciano para botões e destaques
+backgroundColor = "#0B1220"          # fundo principal
+secondaryBackgroundColor = "#0F172A" # painéis/cards
+textColor = "#E5E7EB"                # texto cinza claro
+font = "sans serif"
+
+[server]
+# Configurações específicas para Cloud Shell
+port = 8501
+address = "0.0.0.0"
+enableCORS = false
+enableXsrfProtection = false
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showSidebarNavigation = false
+
+# Observação:
+# - No Cloud Shell use "Web Preview" → porta 8501.
+# - Em container (Cloud Run/GKE), pode ser necessário alterar para porta 8080.

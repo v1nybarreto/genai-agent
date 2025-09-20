@@ -10,7 +10,11 @@
 #   make accept-llm-off # acceptance com LLM desativado
 #   make ask Q="sua pergunta"  # roda o agente direto
 #   make clean          # limpa caches
-#   make env            # mostra variáveis relevantes
+#   make env            # mostra variáveis de ambiente relevantes
+#   make ui             # inicia a interface Streamlit (porta 8501)
+#   make ui-dev         # inicia a interface Streamlit com autoreload (porta 8501)
+#   make ui-reset       # encerra processos que estão usando a porta (default 8501)
+#   make ui-restart     # ui-reset + ui
 
 SHELL := /bin/bash
 PY := python
@@ -18,7 +22,15 @@ PIP := pip
 VENV := .venv
 ACTIVATE := source $(VENV)/bin/activate
 
-.PHONY: help setup venv install precommit-install lint fix test smoke accept accept-quiet accept-llm-off ask clean env
+# Porta do Streamlit (pode sobrescrever: make ui PORT=8502)
+PORT ?= 8501
+
+# Detecta automaticamente onde está o app do Streamlit:
+# - prioriza ui/streamlit_app.py
+# - fallback para streamlit_app.py na raiz
+APP := $(firstword $(wildcard ui/streamlit_app.py streamlit_app.py))
+
+.PHONY: help setup venv install precommit-install lint fix test smoke accept accept-quiet accept-llm-off ask clean env ui ui-dev ui-reset ui-restart
 
 help:
 	@echo "Targets disponíveis:"
@@ -33,6 +45,10 @@ help:
 	@echo "  ask Q='...'      - executa uma pergunta diretamente no agente"
 	@echo "  clean            - remove caches de py/pytest/ruff"
 	@echo "  env              - exibe variáveis de ambiente relevantes"
+	@echo "  ui               - inicia a interface Streamlit (porta $(PORT))"
+	@echo "  ui-dev           - inicia a interface Streamlit com autoreload (porta $(PORT))"
+	@echo "  ui-reset         - encerra processos na porta $(PORT)"
+	@echo "  ui-restart       - ui-reset + ui"
 
 setup: venv install precommit-install
 
@@ -78,3 +94,23 @@ clean:
 
 env:
 	@set | egrep '^(PROJECT_ID|OPENAI|LLM_|BQ_)' || true
+
+ui:
+	@if [ -z "$(APP)" ]; then echo "Arquivo do Streamlit não encontrado. Crie ui/streamlit_app.py ou streamlit_app.py na raiz."; exit 1; fi
+	@echo ">> Iniciando Streamlit em $$PWD/$(APP) na porta $(PORT) (Cloud Shell: Web Preview → $(PORT))"
+	@$(ACTIVATE) && PYTHONPATH=. streamlit run $(APP) --server.port $(PORT) --server.address 0.0.0.0
+
+ui-dev:
+	@if [ -z "$(APP)" ]; then echo "Arquivo do Streamlit não encontrado. Crie ui/streamlit_app.py ou streamlit_app.py na raiz."; exit 1; fi
+	@echo ">> Iniciando Streamlit (DEV - autoreload) em $$PWD/$(APP) na porta $(PORT) (Cloud Shell: Web Preview → $(PORT))"
+	@$(ACTIVATE) && PYTHONPATH=. STREAMLIT_SERVER_RUN_ON_SAVE=true streamlit run $(APP) --server.port $(PORT) --server.address 0.0.0.0
+
+ui-reset:
+	@echo ">> Encerrando processos na porta $(PORT) (fuser/lsof)…"
+	@fuser -k $(PORT)/tcp 2>/dev/null || true
+	@pids="`lsof -ti:$(PORT) 2>/dev/null || true`"; \
+	if [ -n "$$pids" ]; then echo "Matando PIDs: $$pids"; kill -9 $$pids || true; else echo "Nenhum processo escutando na porta $(PORT)."; fi
+	@sleep 1
+	@echo ">> Porta $(PORT) provavelmente liberada (verifique com: lsof -i:$(PORT))"
+
+ui-restart: ui-reset ui
