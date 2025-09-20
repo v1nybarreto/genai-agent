@@ -20,11 +20,11 @@ google-generativeai>=0.7.2
 anthropic>=0.34.0
 
 # Utilidades e Boas Práticas
-tenacity>=8.2           # retries robustos
-python-dotenv>=1.0      # gerenciamento de variáveis de ambiente
-ruff>=0.6.0             # linting e formatação
+tenacity>=8.2           
+python-dotenv>=1.0      
+ruff>=0.6.0             
 
 # Testes e Qualidade
 pytest>=8.2.0
-pytest-timeout          # timeout nos testes
-pre-commit>=3.7.0       # hooks automáticos de lint/test antes de commit
+pytest-timeout         
+pre-commit>=3.7.0       
