@@ -4,13 +4,13 @@ Agente de dados em **LangGraph** que entende perguntas em linguagem natural, ger
 
 ---
 
-## 📂 Tabelas centrais
+## Tabelas centrais
 - `datario.adm_central_atendimento_1746.chamado` (fatos, milhões de linhas, particionada por `data_particao = TRUNC(DATE(data_inicio))`)
 - `datario.dados_mestres.bairro` (dimensão de bairros, usada em JOINs)
 
 ---
 
-## ⚙️ Stack
+## Stack
 - Python 3.12
 - LangGraph / LangChain
 - Google BigQuery (Sandbox / ADC)
@@ -20,7 +20,7 @@ Agente de dados em **LangGraph** que entende perguntas em linguagem natural, ger
 
 ---
 
-## 🚀 Setup rápido
+## Setup rápido
 
 ```bash
 # Criar ambiente virtual
@@ -38,7 +38,7 @@ cp .env.example .env.local
 pre-commit install
 ```
 
-### 🔑 Variáveis de ambiente
+### Variáveis de ambiente
 No `.env.local`:
 ```bash
 PROJECT_ID=genai-rio
@@ -53,7 +53,7 @@ OPENAI_API_KEY=sk-xxxxxxx        # opcional
 
 ---
 
-## 📌 Uso
+## Uso
 
 ```bash
 # Rodar o agente diretamente
@@ -68,7 +68,7 @@ python smoke_test.py
 
 ---
 
-## ✅ Testes
+## Testes
 
 ```bash
 # Checagem de estilo/lint
@@ -90,7 +90,7 @@ A suíte cobre:
 
 ---
 
-## 🏗️ Arquitetura do agente
+## Arquitetura do agente
 
 Fluxo principal (**LangGraph**):
 
@@ -119,7 +119,7 @@ flowchart TD
 
 ---
 
-## 📊 Resultados de aceitação (exemplos)
+## Resultados de aceitação (exemplos)
 
 | Pergunta | Resposta esperada |
 |----------|-------------------|
@@ -132,7 +132,7 @@ flowchart TD
 
 ---
 
-## 🛡️ Limites e Guardas
+## Limites e Guardas
 
 - **Dry-run obrigatório** antes de qualquer execução.  
 - **Máximo de bytes processados** (`BQ_MAX_BYTES_BILLED`).  
@@ -142,7 +142,7 @@ flowchart TD
 
 ---
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 - **Erro de autenticação GCP** → verifique `gcloud auth application-default login` e `PROJECT_ID`.  
 - **Quota ou custo excedido** → ajuste `BQ_MAX_BYTES_BILLED` ou refine filtros de data.  
@@ -151,7 +151,7 @@ flowchart TD
 
 ---
 
-## 📈 Critérios atendidos
+## Critérios atendidos
 
 - [x] **SQL eficiente** (sem `SELECT *`, filtragem defensiva, partições)  
 - [x] **Dry-run** para prever custo/latência  
@@ -163,7 +163,7 @@ flowchart TD
 
 ---
 
-## 🔮 Próximos passos
+## Próximos passos
 
 - Clarificação interativa quando período não for especificado.  
 - Validações semânticas adicionais antes de dry-run.  
