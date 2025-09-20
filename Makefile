@@ -4,7 +4,7 @@
 #   make lint           # ruff check
 #   make fix            # ruff --fix
 #   make test           # pytest completo
-#   make smoke          # some_test.py (BigQuery smoke)
+#   make smoke          # smoke_test.py (BigQuery smoke)
 #   make accept         # scripts/acceptance_test.py
 #   make accept-quiet   # acceptance em modo silencioso
 #   make accept-llm-off # acceptance com LLM desativado
