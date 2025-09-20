@@ -26,7 +26,7 @@ help:
 	@echo "  lint             - ruff check em src, tests e scripts"
 	@echo "  fix              - ruff check --fix"
 	@echo "  test             - roda pytest completo (verbose, falha rápida)"
-	@echo "  smoke            - BigQuery smoke test (some_test.py)"
+	@echo "  smoke            - BigQuery smoke test (smoke_test.py)"
 	@echo "  accept           - acceptance_test.py (padrão do desafio)"
 	@echo "  accept-quiet     - acceptance em modo silencioso"
 	@echo "  accept-llm-off   - acceptance com LLM desativado"
@@ -56,7 +56,7 @@ test:
 	@$(ACTIVATE) && pytest -vv --maxfail=1
 
 smoke:
-	@$(ACTIVATE) && python some_test.py
+	@$(ACTIVATE) && python smoke_test.py
 
 accept:
 	@$(ACTIVATE) && python scripts/acceptance_test.py

@@ -14,7 +14,7 @@ Configuração por ambiente (opcional)
 PROJECT_ID            (default: "genai-rio")
 SMOKE_DATE            (default: "2024-11-28")   # valor para filtro em data_particao
 BQ_LOCATION           (default: "US")
-BQ_MAX_BYTES_BILLED   (default: 5GB)
+BQ_MAX_BYTES_BILLED   (default: 2GB)
 BQ_QUERY_TIMEOUT      (default: 60)             # segundos
 BQ_USE_BQSTORAGE      (default: "0")            # usa BigQuery Storage API se =1
 """
@@ -34,7 +34,7 @@ from google.api_core.exceptions import GoogleAPIError, BadRequest
 PROJECT_ID = os.getenv("PROJECT_ID", "genai-rio")
 SMOKE_DATE = os.getenv("SMOKE_DATE", "2024-11-28")
 BQ_LOCATION = os.getenv("BQ_LOCATION", "US")
-BQ_MAX_BYTES_BILLED = int(os.getenv("BQ_MAX_BYTES_BILLED", str(5 * 1024**3)))
+BQ_MAX_BYTES_BILLED = int(os.getenv("BQ_MAX_BYTES_BILLED", str(2 * 10**9)))
 BQ_QUERY_TIMEOUT = int(os.getenv("BQ_QUERY_TIMEOUT", "60"))
 USE_BQSTORAGE = os.getenv("BQ_USE_BQSTORAGE", "0") == "1"
 

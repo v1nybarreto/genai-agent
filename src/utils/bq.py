@@ -43,7 +43,7 @@ DEFAULT_PROJECT = os.getenv("PROJECT_ID", "genai-rio")
 BQ_LOCATION = os.getenv("BQ_LOCATION", "US")
 
 # Limite "defensivo" de bytes faturáveis em execução real
-MAX_BYTES_BILLED = int(os.getenv("BQ_MAX_BYTES_BILLED", str(5 * 10**9)))
+MAX_BYTES_BILLED = int(os.getenv("BQ_MAX_BYTES_BILLED", str(2 * 10**9)))
 
 # Timeout (segundos) para aguardar conclusão de uma query
 QUERY_TIMEOUT = int(os.getenv("BQ_QUERY_TIMEOUT", "60"))
