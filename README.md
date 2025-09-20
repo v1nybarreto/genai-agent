@@ -1,22 +1,22 @@
 # Agente GenAI — Prefeitura do Rio (Desafio Técnico)
 
-Agente de dados em **LangGraph** que entende perguntas em linguagem natural, gera **SQL eficiente** para o BigQuery (`datario`), valida via **dry-run**, executa e sintetiza a resposta em **PT-BR** (com **LLM opcional**).
+Agente de dados inteligente em **LangGraph**, capaz de transformar perguntas em linguagem natural em **insights acionáveis** a partir do BigQuery público (`datario`). Ele gera **SQL otimizado** (sem desperdício de custo), valida via **dry-run**, executa consultas de forma segura e sintetiza respostas em **português claro** — com uso opcional de **LLM** para maior naturalidade.
 
 ---
 
 ## Tabelas centrais
-- `datario.adm_central_atendimento_1746.chamado` (fatos, milhões de linhas, particionada por `data_particao = TRUNC(DATE(data_inicio))`)
-- `datario.dados_mestres.bairro` (dimensão de bairros, usada em JOINs)
+- `datario.adm_central_atendimento_1746.chamado` — fatos (chamados), milhões de linhas, particionada por `data_particao`
+- `datario.dados_mestres.bairro` — dimensão de bairros, usada em JOINs
 
 ---
 
 ## Stack
-- Python 3.12
-- LangGraph / LangChain
-- Google BigQuery (Sandbox / ADC)
-- Pandas + PyArrow
-- OpenAI GPT (`gpt-4o-mini`) para síntese (opcional)
-- Ruff, pytest, pre-commit (qualidade de código)
+- Python 3.12  
+- LangGraph / LangChain  
+- Google BigQuery (Sandbox, com Application Default Credentials)  
+- Pandas + PyArrow  
+- OpenAI GPT (`gpt-4o-mini`)  
+- Ruff, pytest, pre-commit  
 
 ---
 
@@ -43,12 +43,12 @@ No `.env.local`:
 ```bash
 PROJECT_ID=genai-rio
 BQ_LOCATION=US
-BQ_MAX_BYTES_BILLED=1000000000   # guardião de custo
-BQ_QUERY_TIMEOUT=30              # timeout em segundos
+BQ_MAX_BYTES_BILLED=1000000000   
+BQ_QUERY_TIMEOUT=30              
 LLM_PROVIDER=OPENAI
 OPENAI_MODEL=gpt-4o-mini
 LLM_USE_FOR_SYNTH=1
-OPENAI_API_KEY=sk-xxxxxxx        # opcional
+OPENAI_API_KEY=sk-xxxxxxx        
 ```
 
 ---
@@ -57,13 +57,13 @@ OPENAI_API_KEY=sk-xxxxxxx        # opcional
 
 ```bash
 # Rodar o agente diretamente
-python -m src.agent.graph "Quantos chamados foram abertos no dia 28/11/2024?"
+make ask Q="Quantos chamados foram abertos no dia 28/11/2024?"
 
 # Testar as 6 perguntas do desafio com preview de DF e SQL
 make accept
 
 # Executar smoke test rápido
-python smoke_test.py
+make smoke
 ```
 
 ---
@@ -110,7 +110,7 @@ flowchart TD
 2. **Gerador de SQL** → cria query otimizada (sem `SELECT *`, filtros por data, JOIN com bairros se necessário).  
 3. **Validador/Guardas** → faz `dry-run`, coleta `bytes_processed`, bloqueia DML/DDL, aplica `maximum_bytes_billed`.  
 4. **Executor de SQL** → roda no BigQuery e retorna `DataFrame`.  
-5. **Sintetizador de Resposta** → gera texto em PT-BR com LLM (opcional) ou fallback determinístico.
+5. **Sintetizador de Resposta** → gera texto em português com LLM (opcional) ou fallback determinístico.
 
 ### Extras implementados:
 - **Janela temporal defensiva**: restringe a consultas dos **últimos 365 dias** se usuário não especificar período.  
@@ -170,3 +170,30 @@ flowchart TD
 - Observabilidade (latência, bytes processados) em dashboard.  
 - Cache para FAQs/resultados recorrentes.  
 - CI/CD com execução automática de lint + testes.
+
+---
+
+## Observação sobre `data_particao` vs `data_inicio`
+
+A tabela `datario.adm_central_atendimento_1746.chamado` é particionada por  
+`data_particao = TRUNC(DATE(data_inicio))`.  
+Na prática, identificamos casos onde `DATE(data_inicio)` contém registros  
+que **não aparecem na partição correspondente**.  
+
+Exemplo real:  
+- `DATE(data_inicio) = '2024-11-28'` → **2.885 registros**  
+- `data_particao = '2024-11-28'` → **0 registros**
+
+Esse descompasso pode ocorrer por atrasos de ingestão, backfill ou  
+correções posteriores.
+
+### Decisão do agente
+- Sempre usar `data_particao` por padrão (requisito do desafio), pois garante  
+**pruning de partição** e custo baixo.  
+- Como efeito colateral, contagens pontuais em certos dias podem retornar 0  
+mesmo havendo registros em `data_inicio`.
+
+### Possíveis soluções futuras
+- Adicionar um “modo precisão” opcional que consulta `DATE(data_inicio)`  
+(quando o usuário pedir dia específico), aceitando custo maior.  
+- Avisar o usuário quando o resultado for 0, sugerindo consulta mais precisa.
