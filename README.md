@@ -42,14 +42,21 @@ pre-commit install
 ### Variáveis de ambiente
 No `.env.local`:
 ```bash
-PROJECT_ID=genai-rio
-BQ_LOCATION=US
-BQ_MAX_BYTES_BILLED=2000000000   
-BQ_QUERY_TIMEOUT=60             
+# Configuração do LLM
 LLM_PROVIDER=OPENAI
 OPENAI_MODEL=gpt-4o-mini
+OPENAI_API_KEY=sk-xxxxxxx
 LLM_USE_FOR_SYNTH=1
-OPENAI_API_KEY=sk-xxxxxxx        
+LLM_ENABLED=1
+
+# Projeto BigQuery
+PROJECT_ID=genai-rio
+BQ_MAX_BYTES_BILLED=2000000000
+BQ_LOCATION=US
+BQ_QUERY_TIMEOUT=60
+
+# Logging
+LOG_LEVEL=INFO      
 ```
 
 ---
