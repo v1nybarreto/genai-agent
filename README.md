@@ -1,4 +1,4 @@
-# Agente GenAI — Prefeitura do Rio (Desafio Técnico)
+# Agente GenAI — Prefeitura do Rio
 
 Agente de dados inteligente em **LangGraph**, capaz de transformar perguntas em linguagem natural em **insights acionáveis** a partir do BigQuery público (`datario`). Ele gera **SQL otimizado**, valida via **dry-run**, executa consultas de forma segura e sintetiza respostas em **português** — com uso opcional de **LLM** para maior naturalidade.
 
